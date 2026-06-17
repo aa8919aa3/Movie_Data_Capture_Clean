@@ -1,5 +1,5 @@
 import os
-import sys 
+import sys
 import platform
 import signal
 import time
@@ -26,14 +26,13 @@ def signal_handler(*args):
 if __name__ == '__main__':
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
-    
+
     config.init()
 
     enable_debug = config.getBoolValue("common.enable_debug")
     if enable_debug:
         logger.enable_debug()
 
-    platform_total = str(' - ' + platform.platform() + ' \n[*] - ' + platform.machine() + ' - Python-' + platform.python_version())
     logger.info('================= Movie Data Capture =================')
     logger.info(f"Ver. {constant.G_VERSION}".center(51))
     logger.info('======================================================')
@@ -45,9 +44,7 @@ if __name__ == '__main__':
     logger.info('======================================================')
         # print('[!]CmdLine:', " ".join())
     # logger.info(' - 请不要在墙内宣传本项目 - ')
-    
+
 
     process_control.start()
     logger.info("end.")
-
-    

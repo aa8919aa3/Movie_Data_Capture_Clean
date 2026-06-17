@@ -31,62 +31,74 @@ def get_network_params():
     return proxies, timeout, retry, cacert_file
 
 
-def get(url: str, cookies=None, ua: str = None, extra_headers=None, return_type: str = None, encoding: str = None):
+def _headers(ua: str = None, extra_headers=None):
+    headers = {"User-Agent": ua or G_USER_AGENT}
+    if extra_headers is not None:
+        headers.update(extra_headers)
+    return headers
+
+
+def _coerce_response(result, return_type: str = None, encoding: str = None, text_default: bool = True):
+    if return_type == "object":
+        return result
+    if return_type == "content":
+        return result.content
+
+    result.encoding = encoding or result.apparent_encoding
+    return result.text if text_default else result
+
+
+def _request(method: str, url: str, *, return_type: str = None, encoding: str = None,
+             text_default: bool = True, **kwargs):
     proxies, timeout, retry, verify = get_network_params()
     errors = ""
-    headers = {"User-Agent": ua or G_USER_AGENT}
-    if extra_headers != None:
-        headers.update(extra_headers)
     for i in range(retry):
         try:
-            result = requests.get(url, headers=headers, timeout=timeout, proxies=proxies,
-                                  verify=verify, cookies=cookies)
-            if return_type == "object":
-                return result
-            elif return_type == "content":
-                return result.content
-            else:
-                result.encoding = encoding or result.apparent_encoding
-                return result.text
+            result = requests.request(
+                method,
+                url,
+                timeout=timeout,
+                proxies=proxies,
+                verify=verify,
+                **kwargs,
+            )
+            return _coerce_response(result, return_type, encoding, text_default)
         except Exception as e:
             logger.info(f"Connect: {url} retry {i + 1}/{retry}")
             errors = str(e)
-    
+
     if "getaddrinfo failed" in errors:
         logger.info("Connect Failed! Please Check your proxy config")
     else:
         logger.info('Connect Failed! Please check your Proxy or Network!')
-        
+
     logger.info(errors)
     raise Exception('Connect Failed')
 
 
-def post(url: str, data: dict=None, files=None, cookies=None, ua: str=None, return_type: str=None, encoding: str=None):
-    proxies, timeout, retry, verify = get_network_params()
-    errors = ""
-    headers = {"User-Agent": ua or G_USER_AGENT}
+def get(url: str, cookies=None, ua: str = None, extra_headers=None, return_type: str = None, encoding: str = None):
+    return _request(
+        "GET",
+        url,
+        headers=_headers(ua, extra_headers),
+        cookies=cookies,
+        return_type=return_type,
+        encoding=encoding,
+    )
 
-    for i in range(retry):
-        try:
-            result = requests.post(url, data=data, files=files, headers=headers, timeout=timeout, proxies=proxies,
-                                   verify=verify, cookies=cookies)
-            if return_type == "object":
-                return result
-            elif return_type == "content":
-                return result.content
-            else:
-                result.encoding = encoding or result.apparent_encoding
-                return result
-        except Exception as e:
-            logger.info(f"Connect: {url} retry {i + 1}/{retry}")
-            errors = str(e)
-            
-        if "getaddrinfo failed" in errors:
-            logger.info("Connect Failed! Please Check your proxy config")
-        else:
-            logger.info('Connect Failed! Please check your Proxy or Network!')
-        logger.info(errors)
-        raise Exception('Connect Failed')
+
+def post(url: str, data: dict=None, files=None, cookies=None, ua: str=None, return_type: str=None, encoding: str=None):
+    return _request(
+        "POST",
+        url,
+        headers=_headers(ua),
+        data=data,
+        files=files,
+        cookies=cookies,
+        return_type=return_type,
+        encoding=encoding,
+        text_default=False,
+    )
 
 
 class TimeoutHTTPAdapter(HTTPAdapter):
@@ -124,7 +136,7 @@ def request_session(cookies=None, ua: str=None):
         session.verify = verify
     if proxies:
         session.proxies = proxies
-    
+
     return session
 
 
@@ -220,15 +232,15 @@ def download(url, filepath, ua: str = None, extra_headers=None, cookies=None):
             if r.status_code == 200:
                 with open(filepath, 'wb') as f:
                     f.write(r.content)
-                return 
+                return
         except Exception as e:
             errors = str(e)
         logger.info(f"Connect: {url} retry {i + 1}/{retry}")
-    
+
     if "getaddrinfo failed" in errors:
         logger.info("Connect Failed! Please Check your proxy config")
     else:
         logger.info('Connect Failed! Please check your Proxy or Network!')
-        
+
     logger.info(errors)
     raise Exception('Connect Failed')

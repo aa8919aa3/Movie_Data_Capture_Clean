@@ -20,9 +20,9 @@ def run():
     # 检查配置文件参数合法性
     main_mode = config.getIntValue("common.main_mode")
     logger.debug(f"common.main_mode [{main_mode}]")
-    if main_mode not in (1, 2, 3):
-        logger.error(f"Main mode must be 1 or 2 or 3! ")
-        return 
+    if main_mode != 1:
+        logger.error(f"Main mode [{main_mode}] is not implemented! ")
+        return
 
     # 初始化目标目录
     failed_folder = config.getStrValue("common.failed_output_folder")
@@ -65,7 +65,7 @@ movie_path 目标影片路径
 spec_number 指定番号，此参数不为空时强制使用此参数作为影片番号进行处理。
 '''
 def do_capture_with_single_file(movie_path: str, spec_number:str=None):
-    
+
     number = spec_number if spec_number is not None else get_number(os.path.basename(movie_path))
     movie_path = os.path.abspath(movie_path)
     logger.info(f"[{number}] As Number Processing for [{movie_path[0:cn_space(movie_path, 130)]}]")
@@ -74,7 +74,7 @@ def do_capture_with_single_file(movie_path: str, spec_number:str=None):
         logger.error("number empty ERROR.")
         moveFailedFolder(movie_path)
         return
-    
+
     try:
         info_scraper = scraper.get_base_data_by_number(number)
         logger.info("base data OK")
@@ -85,17 +85,15 @@ def do_capture_with_single_file(movie_path: str, spec_number:str=None):
     if info_scraper is None:
         moveFailedFolder(movie_path)
         return
-    
+
     info_name = scraper.get_data_at_file_name(movie_path,number)
     movie_info = {**info_scraper, **info_name}
-    
+
     main_mode = config.getIntValue("common.main_mode")
-    if main_mode == 1:
-        main_mode_1(movie_path, movie_info)
-    elif main_mode == 2:
-        pass
-    elif main_mode == 3:
-        pass
+    if main_mode != 1:
+        logger.error(f"Main mode [{main_mode}] is not implemented! ")
+        return
+    main_mode_1(movie_path, movie_info)
 
 
 '''
@@ -112,7 +110,7 @@ def main_mode_1(movie_path, movie_info):
     if movie_target_dir is None:
         moveFailedFolder(movie_path)
         return
-    
+
     # 处理封面
     fanart_path = ''
     poster_path = ''
@@ -120,20 +118,12 @@ def main_mode_1(movie_path, movie_info):
     if config.getBoolValue("capture.get_cover_switch"):
         fanart_path, poster_path, thumb_path = handler_cover(movie_info, movie_target_dir)
         logger.info("cover data OK")
-    
-    # 下载预告片
-    # if conf.is_trailer() and movie_info.get('trailer'):
-    #     trailer_download(movie_info.get('trailer'), leak_word, c_word, hack_word, number, path, movie_path)
 
     # 下载剧照
     if config.getBoolValue("capture.get_extrafanart_switch") and "extrafanart" in movie_info and len(movie_info.get('extrafanart')) > 0:
         extrafanart_download(movie_info.get('extrafanart'), movie_target_dir)
         logger.info("extrafanart data OK")
 
-    # 下载演员头像 KODI .actors 目录位置
-    # if conf.download_actor_photo_for_kodi():
-    #     actor_photo_download(movie_info.get('actor_photo'), path, number)
-    
     # 根据movie_file_name_template配置模板生成影片文件名
     movie_suffix = os.path.splitext(movie_path)[-1]
     movie_file_name_template = config.getStrValue("template.movie_file_name_template")
@@ -150,7 +140,7 @@ def main_mode_1(movie_path, movie_info):
             logger.error(f"print_files error. [{e}]")
             moveFailedFolder(movie_path)
             return
-    
+
     # 生成影片最终全路径，进行长度控制
     new_movie_path = legalization_of_file_path(os.path.join(movie_target_dir, target_file_name + movie_suffix))
     logger.info(f"move to [{new_movie_path[0:cn_space(new_movie_path, 150)]}]")
@@ -168,7 +158,7 @@ def main_mode_1(movie_path, movie_info):
             shutil.move(sub_path, target_sub_path)
 
 
-''' 
+'''
 封面文件下载器
 '''
 def handler_cover(movie_info, movie_target_dir):
@@ -186,14 +176,14 @@ def handler_cover(movie_info, movie_target_dir):
             fanart_path = f"{number}{movie_info['hacked_cn_suffix']}-fanart{ext}"
             poster_path = f"{number}{movie_info['hacked_cn_suffix']}-poster{ext}"
             thumb_path = f"{number}{movie_info['hacked_cn_suffix']}-thumb{ext}"
-        
+
         full_filepath = os.path.join(movie_target_dir, thumb_path)
         succ = image_download(cover_url, full_filepath)
         shutil.copyfile(full_filepath, os.path.join(movie_target_dir, poster_path))
         if succ and not config.getBoolValue("capture.jellyfin"):
             shutil.copyfile(full_filepath, os.path.join(movie_target_dir, fanart_path))
             # TODO cutImage(imagecut, path, thumb_path, poster_path, bool(conf.face_uncensored_only() and not uncensored))
-    
+
     return fanart_path, poster_path, thumb_path
 
 
@@ -205,7 +195,7 @@ def moveFailedFolder(movie_path):
     specify_file = config.getStrValAtArgs("specify_file")
     if specify_file != '':
         return #指定文件模式下不输出此文件
-    
+
     failed_folder = config.getStrValue("common.failed_output_folder")
     new_movie_path = os.path.join(failed_folder, os.path.basename(movie_path))
     mtxt = os.path.abspath(os.path.join(failed_folder, 'where_was_i_before_being_moved.txt'))
@@ -232,7 +222,7 @@ def create_movie_folder_by_rule(movie_info):
     relative_path = location_template.format(**movie_info)
     path = os.path.join(success_folder, f'./{relative_path.strip()}')
     path = legalization_of_file_path(path)
-    
+
     try:
         create_folder(path)
     except:
@@ -246,7 +236,7 @@ def image_download(url:str, full_filepath:str) -> bool:
     if config.getBoolValue("capture.download_only_missing_images") and not file_not_exist_or_empty(full_filepath):
         logger.info(f"image [{full_filepath}] already exists. skip download.")
         return True
-    
+
     download(url, full_filepath)
 
     if not file_not_exist_or_empty(full_filepath):
@@ -269,17 +259,17 @@ def extrafanart_download(data, movie_target_dir):
             jpg_fullpath = os.path.join(extrafanart_path, jpg_filename)
             image_download(url,jpg_fullpath)
 
-def extrafanart_download_threadpool(url_list, extrafanart_path):    
+def extrafanart_download_threadpool(url_list, extrafanart_path):
     dn_list = []
     for i, url in enumerate(url_list, start=1):
-        jpg_fullpath = os.path.join(extrafanart_path, f'extrafanart-{i}{image_ext(url)}') 
+        jpg_fullpath = os.path.join(extrafanart_path, f'extrafanart-{i}{image_ext(url)}')
         if config.getBoolValue("capture.download_only_missing_images") and not file_not_exist_or_empty(jpg_fullpath):
             continue
         dn_list.append((url, jpg_fullpath))
 
     if not len(dn_list):
         return
-    
+
     parallel = min(len(dn_list), config.getIntValue("capture.extrafanart_parallel_download"))
 
     with ThreadPoolExecutor(parallel) as pool:
@@ -307,8 +297,6 @@ def print_nfo_file(nfo_path, fanart_path, poster_path, thumb_path, movie_info):
         except:
             pass
 
-        nfo_title = ""
-        original_nfo_title = ""
         nfo_title_template = config.getStrValue("template.nfo_title_template")
         nfo_title = nfo_title_template.format(**movie_info)
         original_nfo_title = nfo_title_template.replace('{title}', '{original_title}').format(**movie_info)
@@ -349,17 +337,13 @@ def print_nfo_file(nfo_path, fanart_path, poster_path, thumb_path, movie_info):
                 for key in movie_info['actor_list']:
                     print("  <actor>", file=code)
                     print("    <name>" + key + "</name>", file=code)
-                    # try:
-                    #     print("    <thumb>" + actor_photo.get(str(key)) + "</thumb>", file=code)
-                    # except:
-                    #     pass
                     print("  </actor>", file=code)
             except:
                 pass
             print("  <maker>" + movie_info['studio'] + "</maker>", file=code)
             print("  <label>" + movie_info['label'] + "</label>", file=code)
 
-            
+
             if not jellyfin:
                 for i in movie_info['tag']:
                     print("  <tag>" + i + "</tag>", file=code)
@@ -374,7 +358,7 @@ def print_nfo_file(nfo_path, fanart_path, poster_path, thumb_path, movie_info):
             if old_nfo:
                 try:
                     xur = old_nfo.xpath('//userrating/text()')[0]
-                    if isinstance(xur, str) and re.match('\d+\.\d+|\d+', xur.strip()):
+                    if isinstance(xur, str) and re.match(r'\d+\.\d+|\d+', xur.strip()):
                         print(f"  <userrating>{xur.strip()}</userrating>", file=code)
                 except:
                     pass
@@ -394,7 +378,7 @@ def print_nfo_file(nfo_path, fanart_path, poster_path, thumb_path, movie_info):
                     try:
                         for rtag in ('rating', 'criticrating'):
                             xur = old_nfo.xpath(f'//{rtag}/text()')[0]
-                            if isinstance(xur, str) and re.match('\d+\.\d+|\d+', xur.strip()):
+                            if isinstance(xur, str) and re.match(r'\d+\.\d+|\d+', xur.strip()):
                                 print(f"  <{rtag}>{xur.strip()}</{rtag}>", file=code)
                         f_rating = old_nfo.xpath(f"//ratings/rating[@name='javdb']/value/text()")[0]
                         uc = old_nfo.xpath(f"//ratings/rating[@name='javdb']/votes/text()")[0]
@@ -411,7 +395,7 @@ def print_nfo_file(nfo_path, fanart_path, poster_path, thumb_path, movie_info):
             #     print("  <trailer>" + trailer + "</trailer>", file=code)
             print("  <website>" + movie_info['website'] + "</website>", file=code)
             print("</movie>", file=code)
-            logger.info(f"nfo file wrote! [{nfo_path}]")    
+            logger.info(f"nfo file wrote! [{nfo_path}]")
     except Exception as e:
         logger.error(f"nfo file write error! [{nfo_path}] {e}")
         return

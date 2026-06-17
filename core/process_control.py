@@ -1,11 +1,4 @@
 import os
-import re
-import sys
-import time
-import typing
-import signal
-
-from pathlib import Path
 import logger
 import config
 
@@ -21,14 +14,14 @@ def start():
         from . import mode_test
         mode_test.run()
         return
-    
+
     # 运行自动评分模式  -------------------------------------
     if config.getBoolValAtArgs("rate_mode"):
         logger.info(f"Find --rate in the parameter list. ")
         from . import mode_autorate
         mode_autorate.run()
         return
-    
+
     # 指定番号查询信息  ---------------------------------
     search_for_number = config.getStrValAtArgs("search_for_number")
     if search_for_number != '':
@@ -36,7 +29,7 @@ def start():
         from . import mode_search
         mode_search.run(search_for_number)
         return
-    
+
     # 指定文件刮削 ---------------------------------
     specify_file = config.getStrValAtArgs("specify_file")
     if specify_file != '':
@@ -62,7 +55,7 @@ def start():
         from . import mode_list_movie
         mode_list_movie.run()
         return
-    
+
     # 默认模式  -----------------------------------------
     logger.info(f"run in default mode. ")
     from . import mode_normal
